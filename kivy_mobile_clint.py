@@ -1,14 +1,18 @@
 # ============================================================
-#  Offline Secured Chat — CLIENT (Single File Version)
-#  For Pydroid 3 on Android
+#  Offline Secured Chat — ANDROID CLIENT (Kivy Version)
+#  Works on Pydroid 3 with Kivy installed
+#
+#  INSTALL KIVY in Pydroid 3:
+#    Open Pydroid pip → install:  kivy
+#    (or via terminal: pip install kivy)
+#
+#  HOW TO RUN:
+#    1. Save this file as client_android_kivy.py
+#    2. Run it in Pydroid 3
+#    3. Enter server IP and tap Connect
+#
 #  Project : Offline Secured Chat Application
 #  Author  : Muhammad Shoaib Khalid
-#  Course  : CSDF-30109 Information Security
-# ============================================================
-# HOW TO RUN ON PYDROID:
-#   1. Save this file as client_mobile.py
-#   2. Run it — enter server IP when asked
-#   3. Server IP = the IP shown in server.py window on PC
 # ============================================================
 
 import socket
@@ -22,12 +26,36 @@ import struct
 from datetime import datetime
 from struct import pack, unpack
 
-import tkinter as tk
-from tkinter import scrolledtext, messagebox, simpledialog
+# ─── Kivy imports ────────────────────────────────────────────
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.uix.popup import Popup
+from kivy.clock import Clock
+from kivy.core.window import Window
+from kivy.utils import get_color_from_hex
+from kivy.metrics import dp
 
-# ─────────────────────────────────────────────────────────────────────────────
+# Dark theme colors (Catppuccin Mocha)
+C_BG      = get_color_from_hex("#1e1e2e")
+C_SURFACE = get_color_from_hex("#181825")
+C_TEXT    = get_color_from_hex("#cdd6f4")
+C_GREEN   = get_color_from_hex("#a6e3a1")
+C_BLUE    = get_color_from_hex("#89b4fa")
+C_YELLOW  = get_color_from_hex("#f9e2af")
+C_RED     = get_color_from_hex("#f38ba8")
+C_SUBTEXT = get_color_from_hex("#6c7086")
+
+Window.clearcolor = C_BG
+
+
+# ─────────────────────────────────────────────────────────────
 # BLOWFISH ALGORITHM — Full from-scratch implementation
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
 
 ORIG_P = [
     0x243f6a88, 0x85a308d3, 0x13198a2e, 0x03707344,
@@ -228,7 +256,7 @@ def _u32(n):
 class BlowfishCipher:
     def __init__(self, key: bytes):
         if not (4 <= len(key) <= 56):
-            raise ValueError("Key must be 4-56 bytes.")
+            raise ValueError("Key must be 4–56 bytes.")
         self.p = list(ORIG_P)
         self.s = [list(box) for box in ORIG_S]
         self._key_schedule(key)
@@ -313,9 +341,9 @@ class BlowfishCipher:
         return self.decrypt_cbc(ct, iv).decode("utf-8")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SECURE PROTOCOL — Blowfish-CBC + HMAC-SHA256 + Anti-Replay
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# SECURE PROTOCOL
+# ─────────────────────────────────────────────────────────────
 
 PROTOCOL_VERSION = 1
 
@@ -377,19 +405,17 @@ def parse_secure_packet(cipher, mac_key, packet, last_seq):
     return cipher.decrypt_message_cbc(ct, iv), seq
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CLIENT UI
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# KIVY UI
+# ─────────────────────────────────────────────────────────────
 
 PORT       = 9999
 SECRET_KEY = b"SecureKey123"
 
 
-class ClientChatApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Secure Chat - Client")
-        self.root.configure(bg="#1e1e2e")
+class ChatScreen(BoxLayout):
+    def __init__(self, **kwargs):
+        super().__init__(orientation="vertical", spacing=0, **kwargs)
 
         enc_key, self.mac_key = derive_keys(SECRET_KEY)
         self.cipher   = BlowfishCipher(enc_key)
@@ -399,71 +425,171 @@ class ClientChatApp:
         self.recv_seq = -1
 
         self._build_ui()
-        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
-        self._ask_ip()
 
     def _build_ui(self):
-        hdr = tk.Frame(self.root, bg="#181825", pady=8)
-        hdr.pack(fill=tk.X)
-        tk.Label(hdr, text="Secure Chat — Client (User A)",
-                 font=("Helvetica", 13, "bold"), bg="#181825", fg="#cdd6f4").pack()
-        tk.Label(hdr, text="Blowfish-CBC + HMAC-SHA256",
-                 font=("Helvetica", 8), bg="#181825", fg="#6c7086").pack()
-
-        self.status_var = tk.StringVar(value="Not connected")
-        tk.Label(self.root, textvariable=self.status_var,
-                 font=("Helvetica", 9), bg="#1e1e2e", fg="#f38ba8").pack(pady=3)
-
-        self.chat = scrolledtext.ScrolledText(
-            self.root, bg="#181825", fg="#cdd6f4",
-            font=("Courier", 10), state=tk.DISABLED, wrap=tk.WORD, bd=0)
-        self.chat.pack(padx=8, pady=4, fill=tk.BOTH, expand=True)
-        self.chat.tag_config("you",    foreground="#a6e3a1")
-        self.chat.tag_config("other",  foreground="#89b4fa")
-        self.chat.tag_config("system", foreground="#f9e2af")
-        self.chat.tag_config("error",  foreground="#f38ba8")
-
-        row = tk.Frame(self.root, bg="#1e1e2e")
-        row.pack(padx=8, pady=6, fill=tk.X)
-        self.entry = tk.Entry(row, font=("Courier", 11),
-                              bg="#313244", fg="#cdd6f4",
-                              insertbackground="#cdd6f4", relief="flat", bd=6)
-        self.entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self.entry.bind("<Return>", self._send)
-        tk.Button(row, text="Send", font=("Helvetica", 10, "bold"),
-                  bg="#89b4fa", fg="#1e1e2e", relief="flat", bd=0, padx=10,
-                  command=self._send).pack(side=tk.LEFT, padx=(6, 0))
-
-    def _log(self, sender, msg, tag):
-        ts = datetime.now().strftime("%H:%M")
-        self.chat.config(state=tk.NORMAL)
-        self.chat.insert(tk.END, f"[{ts}] {sender}: {msg}\n", tag)
-        self.chat.see(tk.END)
-        self.chat.config(state=tk.DISABLED)
-
-    def _log_safe(self, sender, msg, tag):
-        self.root.after(0, self._log, sender, msg, tag)
-
-    def _set_status(self, text):
-        self.root.after(0, lambda: self.status_var.set(text))
-
-    def _ask_ip(self):
-        ip = simpledialog.askstring(
-            "Server IP",
-            "Enter Server IP:\n\n"
-            "Same PC  ->  127.0.0.1\n"
-            "WiFi     ->  e.g. 192.168.1.5\n\n"
-            "(Check the Server window for the IP)",
-            initialvalue="192.168.1.1"
+        # ── Header ──────────────────────────────────────────
+        header = BoxLayout(
+            orientation="vertical",
+            size_hint_y=None,
+            height=dp(80),
+            padding=[dp(12), dp(8)],
+            spacing=dp(2),
         )
-        if ip:
-            threading.Thread(target=self._connect, args=(ip.strip(),), daemon=True).start()
-        else:
-            self.root.destroy()
+        header.canvas.before.add(
+            __import__("kivy.graphics", fromlist=["Color"]).Color(*C_SURFACE)
+        )
+        from kivy.graphics import Color, Rectangle
+        with header.canvas.before:
+            Color(*C_SURFACE)
+            self._header_rect = Rectangle(size=header.size, pos=header.pos)
+        header.bind(size=self._update_header_rect, pos=self._update_header_rect)
+
+        title = Label(
+            text="[b]🔐 Secure Chat — Client[/b]",
+            markup=True,
+            font_size=dp(16),
+            color=C_TEXT,
+            size_hint_y=None,
+            height=dp(28),
+        )
+        subtitle = Label(
+            text="Blowfish-CBC + HMAC-SHA256 + Anti-Replay",
+            font_size=dp(10),
+            color=C_SUBTEXT,
+            size_hint_y=None,
+            height=dp(18),
+        )
+        header.add_widget(title)
+        header.add_widget(subtitle)
+        self.add_widget(header)
+
+        # ── Status bar ──────────────────────────────────────
+        self.status_label = Label(
+            text="🔌 Not connected",
+            font_size=dp(11),
+            color=C_RED,
+            size_hint_y=None,
+            height=dp(28),
+        )
+        self.add_widget(self.status_label)
+
+        # ── Chat log (scrollable) ────────────────────────────
+        scroll = ScrollView(do_scroll_x=False)
+        self.chat_layout = BoxLayout(
+            orientation="vertical",
+            size_hint_y=None,
+            spacing=dp(4),
+            padding=[dp(10), dp(6)],
+        )
+        self.chat_layout.bind(minimum_height=self.chat_layout.setter("height"))
+        scroll.add_widget(self.chat_layout)
+        self.scroll = scroll
+        self.add_widget(scroll)
+
+        # ── Connection row ───────────────────────────────────
+        conn_row = BoxLayout(
+            orientation="horizontal",
+            size_hint_y=None,
+            height=dp(44),
+            spacing=dp(6),
+            padding=[dp(8), dp(4)],
+        )
+        self.ip_input = TextInput(
+            hint_text="Server IP  (e.g. 192.168.1.5)",
+            text="192.168.1.1",
+            font_size=dp(13),
+            multiline=False,
+            background_color=get_color_from_hex("#313244"),
+            foreground_color=C_TEXT,
+            cursor_color=C_TEXT,
+            size_hint_x=0.7,
+        )
+        self.connect_btn = Button(
+            text="Connect",
+            font_size=dp(13),
+            background_color=C_BLUE,
+            color=get_color_from_hex("#1e1e2e"),
+            size_hint_x=0.3,
+            bold=True,
+        )
+        self.connect_btn.bind(on_press=self._on_connect)
+        conn_row.add_widget(self.ip_input)
+        conn_row.add_widget(self.connect_btn)
+        self.add_widget(conn_row)
+
+        # ── Message input row ────────────────────────────────
+        msg_row = BoxLayout(
+            orientation="horizontal",
+            size_hint_y=None,
+            height=dp(50),
+            spacing=dp(6),
+            padding=[dp(8), dp(4)],
+        )
+        self.msg_input = TextInput(
+            hint_text="Type a message…",
+            font_size=dp(14),
+            multiline=False,
+            background_color=get_color_from_hex("#313244"),
+            foreground_color=C_TEXT,
+            cursor_color=C_TEXT,
+            size_hint_x=0.78,
+        )
+        self.msg_input.bind(on_text_validate=self._on_send)
+        send_btn = Button(
+            text="Send 🔒",
+            font_size=dp(13),
+            background_color=C_BLUE,
+            color=get_color_from_hex("#1e1e2e"),
+            size_hint_x=0.22,
+            bold=True,
+        )
+        send_btn.bind(on_press=self._on_send)
+        msg_row.add_widget(self.msg_input)
+        msg_row.add_widget(send_btn)
+        self.add_widget(msg_row)
+
+    def _update_header_rect(self, instance, value):
+        self._header_rect.size = instance.size
+        self._header_rect.pos  = instance.pos
+
+    # ── Chat log helpers ─────────────────────────────────────
+
+    def _append_message(self, sender, text, color):
+        ts = datetime.now().strftime("%H:%M")
+        full = f"[{ts}] {sender}: {text}"
+        lbl = Label(
+            text=full,
+            font_size=dp(13),
+            color=color,
+            size_hint_y=None,
+            halign="left",
+            valign="top",
+            text_size=(Window.width - dp(20), None),
+        )
+        lbl.bind(texture_size=lambda inst, val: setattr(inst, "height", val[1] + dp(6)))
+        self.chat_layout.add_widget(lbl)
+        Clock.schedule_once(lambda dt: setattr(self.scroll, "scroll_y", 0), 0.1)
+
+    def _append_safe(self, sender, text, color):
+        Clock.schedule_once(lambda dt: self._append_message(sender, text, color))
+
+    def _set_status(self, text, color=None):
+        c = color or C_RED
+        Clock.schedule_once(lambda dt: setattr(self.status_label, "text", text))
+        Clock.schedule_once(lambda dt: setattr(self.status_label, "color", c))
+
+    # ── Connection logic ─────────────────────────────────────
+
+    def _on_connect(self, *args):
+        host = self.ip_input.text.strip()
+        if not host:
+            return
+        self.connect_btn.disabled = True
+        threading.Thread(target=self._connect, args=(host,), daemon=True).start()
 
     def _connect(self, host):
         try:
-            self._set_status(f"Connecting to {host}...")
+            self._set_status(f"⏳ Connecting to {host}…", C_YELLOW)
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.settimeout(15)
             self.sock.connect((host, PORT))
@@ -471,14 +597,18 @@ class ClientChatApp:
             self.running  = True
             self.send_seq = 0
             self.recv_seq = -1
-            self._set_status(f"Connected to {host}")
-            self._log_safe("System", f"Secure connection to {host}", "system")
+            self._set_status(f"✅ Connected to {host}", C_GREEN)
+            self._append_safe("System", f"Secure channel established with {host}", C_YELLOW)
+            Clock.schedule_once(lambda dt: setattr(self.connect_btn, "disabled", True))
             threading.Thread(target=self._recv_loop, daemon=True).start()
         except socket.timeout:
-            self.root.after(0, messagebox.showerror, "Timeout",
-                f"Cannot reach {host}:{PORT}\nIs server running? Same WiFi?")
+            self._set_status("❌ Connection timed out", C_RED)
+            self._append_safe("System", f"Timeout — is server running on {host}:{PORT}?", C_RED)
+            Clock.schedule_once(lambda dt: setattr(self.connect_btn, "disabled", False))
         except Exception as e:
-            self.root.after(0, messagebox.showerror, "Error", str(e))
+            self._set_status("❌ Connection failed", C_RED)
+            self._append_safe("System", f"Error: {e}", C_RED)
+            Clock.schedule_once(lambda dt: setattr(self.connect_btn, "disabled", False))
 
     def _recv_loop(self):
         while self.running:
@@ -486,44 +616,41 @@ class ClientChatApp:
                 pkt = recv_packet(self.sock)
                 text, seq = parse_secure_packet(self.cipher, self.mac_key, pkt, self.recv_seq)
                 self.recv_seq = seq
-                self._log_safe("User B", text, "other")
+                self._append_safe("Server", text, C_BLUE)
             except ValueError as e:
-                self._log_safe("Security", str(e), "error")
+                self._append_safe("⚠️ Security", str(e), C_RED)
                 break
             except Exception:
                 break
-        self._log_safe("System", "Disconnected.", "system")
-        self._set_status("Disconnected")
+        self._append_safe("System", "Disconnected from server.", C_YELLOW)
+        self._set_status("🔌 Disconnected", C_RED)
         self.running = False
+        Clock.schedule_once(lambda dt: setattr(self.connect_btn, "disabled", False))
 
-    def _send(self, event=None):
-        if not self.sock or not self.running:
-            messagebox.showwarning("Not Connected", "Connect to server first.")
+    # ── Send ─────────────────────────────────────────────────
+
+    def _on_send(self, *args):
+        if not self.running or not self.sock:
+            self._append_safe("System", "Not connected.", C_RED)
             return
-        msg = self.entry.get().strip()
+        msg = self.msg_input.text.strip()
         if not msg:
             return
         try:
             pkt = build_secure_packet(self.cipher, self.mac_key, msg, self.send_seq)
             send_packet(self.sock, pkt)
             self.send_seq += 1
-            self._log("You", msg, "you")
-            self.entry.delete(0, tk.END)
+            self._append_safe("You", msg, C_GREEN)
+            Clock.schedule_once(lambda dt: setattr(self.msg_input, "text", ""))
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            self._append_safe("System", f"Send error: {e}", C_RED)
 
-    def _on_close(self):
-        self.running = False
-        if self.sock:
-            try: self.sock.shutdown(socket.SHUT_RDWR)
-            except: pass
-            try: self.sock.close()
-            except: pass
-        self.root.destroy()
+
+class SecureChatApp(App):
+    def build(self):
+        self.title = "Secure Chat"
+        return ChatScreen()
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    root.geometry("400x600")
-    ClientChatApp(root)
-    root.mainloop()
+    SecureChatApp().run()
