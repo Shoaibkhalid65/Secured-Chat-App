@@ -2,7 +2,7 @@
 # Offline Secured Chat Application — SERVER SIDE
 # Run this on the machine that will RECEIVE the first connection.
 # Project : Offline Secured Chat Application
-# Author  : Muhammad Shoaib Khalid
+# Author  : Jawad Khalid
 
 import os
 import socket
