@@ -1,172 +1,153 @@
 # test_cases.py
-# Test Cases for Blowfish Algorithm Implementation
-# Project: Offline Secured Chat Application
-# Student: Muhammad Shoaib Khalid
+# Test Cases for Blowfish Algorithm + Secure Protocol
+# Project : Offline Secured Chat Application
+# Author  : Muhammad Shoaib Khalid  |  Student ID: [Your ID]
+# Course  : CSDF-30109 Information Security
 
+import os
 from blowfish import BlowfishCipher
 from secure_protocol import build_secure_packet, derive_keys, parse_secure_packet
-import os
 
 PASS = "✅ PASS"
 FAIL = "❌ FAIL"
 
-def run_test(test_name, result, expected):
-    status = PASS if result == expected else FAIL
-    print(f"{status} | {test_name}")
-    if result != expected:
-        print(f"       Expected : {expected}")
-        print(f"       Got      : {result}")
 
-def test_basic_encrypt_decrypt():
-    """TC-01: Basic message encrypt then decrypt returns original."""
-    cipher = BlowfishCipher(b"TestKey1")
-    msg = "Hello, World!"
-    encrypted = cipher.encrypt_message(msg)
-    decrypted = cipher.decrypt_message(encrypted)
-    run_test("TC-01: Basic encrypt/decrypt", decrypted, msg)
+def run_test(name: str, result, expected):
+    ok = result == expected
+    print(f"{'✅ PASS' if ok else '❌ FAIL'}  |  {name}")
+    if not ok:
+        print(f"         Expected : {expected!r}")
+        print(f"         Got      : {result!r}")
+    return ok
 
-def test_empty_string():
-    """TC-02: Empty string encrypt/decrypt."""
-    cipher = BlowfishCipher(b"TestKey1")
-    msg = ""
-    encrypted = cipher.encrypt_message(msg)
-    decrypted = cipher.decrypt_message(encrypted)
-    run_test("TC-02: Empty string", decrypted, msg)
 
-def test_long_message():
-    """TC-03: Long message (paragraph)."""
-    cipher = BlowfishCipher(b"LongKeyTest99")
-    msg = "This is a very long message used to test the Blowfish algorithm with multiple blocks of data to ensure correctness across block boundaries."
-    encrypted = cipher.encrypt_message(msg)
-    decrypted = cipher.decrypt_message(encrypted)
-    run_test("TC-03: Long message", decrypted, msg)
+# ─── Blowfish Core Tests ───────────────────────────────────────────────────────
 
-def test_special_characters():
-    """TC-04: Special characters and symbols."""
-    cipher = BlowfishCipher(b"SpecialKey!")
-    msg = "Hello! @#$%^&*() 123 — test."
-    encrypted = cipher.encrypt_message(msg)
-    decrypted = cipher.decrypt_message(encrypted)
-    run_test("TC-04: Special characters", decrypted, msg)
+def tc01_basic_ecb():
+    c = BlowfishCipher(b"TestKey1234")
+    msg = "Hello, Blowfish!"
+    assert c.decrypt_message(c.encrypt_message(msg)) == msg
+    run_test("TC-01  Basic ECB encrypt → decrypt", c.decrypt_message(c.encrypt_message(msg)), msg)
 
-def test_different_keys_different_output():
-    """TC-05: Same message with different keys produces different ciphertext."""
+def tc02_empty_string():
+    c = BlowfishCipher(b"TestKey1234")
+    run_test("TC-02  Empty string ECB", c.decrypt_message(c.encrypt_message("")), "")
+
+def tc03_long_message():
+    c = BlowfishCipher(b"LongKeyTest99!")
+    msg = "A" * 500 + " end of message."
+    run_test("TC-03  Long message (500+ chars)", c.decrypt_message(c.encrypt_message(msg)), msg)
+
+def tc04_special_chars():
+    c = BlowfishCipher(b"SpecialKey!@#")
+    msg = "Hello! @#$%^&*() 123 — اردو test. 你好"
+    run_test("TC-04  Special chars + Unicode", c.decrypt_message(c.encrypt_message(msg)), msg)
+
+def tc05_different_keys_diff_output():
+    c1 = BlowfishCipher(b"KeyAlpha1234")
+    c2 = BlowfishCipher(b"KeyBeta5678!")
     msg = "SameMessage"
-    cipher1 = BlowfishCipher(b"KeyOne123")
-    cipher2 = BlowfishCipher(b"KeyTwo456")
-    enc1 = cipher1.encrypt_message(msg)
-    enc2 = cipher2.encrypt_message(msg)
-    result = enc1 != enc2
-    run_test("TC-05: Different keys → different ciphertext", result, True)
+    run_test("TC-05  Different keys → different ciphertext", c1.encrypt_message(msg) != c2.encrypt_message(msg), True)
 
-def test_wrong_key_cannot_decrypt_correctly():
-    """TC-06: Wrong key produces garbage (not original message)."""
-    cipher1 = BlowfishCipher(b"CorrectKey1")
-    cipher2 = BlowfishCipher(b"WrongKey999")
-    msg = "Secret message"
-    encrypted = cipher1.encrypt_message(msg)
+def tc06_wrong_key_cannot_decrypt():
+    c1 = BlowfishCipher(b"CorrectKeyABC")
+    c2 = BlowfishCipher(b"WrongKey99999")
+    msg = "Top Secret"
+    ct  = c1.encrypt_message(msg)
     try:
-        decrypted = cipher2.decrypt_message(encrypted)
-        result = decrypted != msg
+        bad = c2.decrypt_message(ct)
+        run_test("TC-06  Wrong key cannot decrypt", bad != msg, True)
     except Exception:
-        result = True  # Exception also means wrong key can't decrypt
-    run_test("TC-06: Wrong key cannot decrypt", result, True)
+        run_test("TC-06  Wrong key cannot decrypt", True, True)
 
-def test_numeric_message():
-    """TC-07: Numeric string message."""
-    cipher = BlowfishCipher(b"NumericKey1")
-    msg = "1234567890"
-    encrypted = cipher.encrypt_message(msg)
-    decrypted = cipher.decrypt_message(encrypted)
-    run_test("TC-07: Numeric string", decrypted, msg)
+def tc07_numeric_message():
+    c = BlowfishCipher(b"NumericKey123")
+    msg = "0123456789"
+    run_test("TC-07  Numeric string", c.decrypt_message(c.encrypt_message(msg)), msg)
 
-def test_urdu_unicode():
-    """TC-08: Unicode / Urdu characters."""
-    cipher = BlowfishCipher(b"UnicodeKey1")
-    msg = "ہیلو دنیا"  # "Hello World" in Urdu
-    encrypted = cipher.encrypt_message(msg)
-    decrypted = cipher.decrypt_message(encrypted)
-    run_test("TC-08: Unicode/Urdu characters", decrypted, msg)
+def tc08_urdu_unicode():
+    c = BlowfishCipher(b"UnicodeKeyUrdu")
+    msg = "ہیلو دنیا — Hello World in Urdu"
+    run_test("TC-08  Urdu / Unicode characters", c.decrypt_message(c.encrypt_message(msg)), msg)
 
-def test_ciphertext_is_bytes():
-    """TC-09: Encrypted output should be bytes, not string."""
-    cipher = BlowfishCipher(b"ByteCheck1")
-    msg = "Check type"
-    encrypted = cipher.encrypt_message(msg)
-    run_test("TC-09: Ciphertext is bytes", isinstance(encrypted, bytes), True)
+def tc09_ciphertext_is_bytes():
+    c = BlowfishCipher(b"ByteCheck9999")
+    run_test("TC-09  Ciphertext type is bytes", isinstance(c.encrypt_message("Test"), bytes), True)
 
-def test_ciphertext_not_equal_plaintext():
-    """TC-10: Ciphertext should not equal original plaintext bytes."""
-    cipher = BlowfishCipher(b"NotEqualKey")
-    msg = "PlainText"
-    encrypted = cipher.encrypt_message(msg)
-    run_test("TC-10: Ciphertext ≠ plaintext", encrypted != msg.encode(), True)
+def tc10_ciphertext_ne_plaintext():
+    c = BlowfishCipher(b"NotEqualKey12")
+    msg = "PlainTextHere"
+    run_test("TC-10  Ciphertext ≠ plaintext bytes", c.encrypt_message(msg) != msg.encode(), True)
 
-def test_minimum_key_length():
-    """TC-11: Minimum key length (4 bytes) works."""
-    cipher = BlowfishCipher(b"Keys")  # exactly 4 bytes
-    msg = "MinKey"
-    encrypted = cipher.encrypt_message(msg)
-    decrypted = cipher.decrypt_message(encrypted)
-    run_test("TC-11: Minimum key (4 bytes)", decrypted, msg)
+def tc11_min_key():
+    c = BlowfishCipher(b"Keys")   # 4 bytes — minimum
+    msg = "MinKeyTest"
+    run_test("TC-11  Minimum key length (4 bytes)", c.decrypt_message(c.encrypt_message(msg)), msg)
 
-def test_maximum_key_length():
-    """TC-12: Maximum key length (56 bytes) works."""
-    key = b"A" * 56  # exactly 56 bytes
-    cipher = BlowfishCipher(key)
-    msg = "MaxKey"
-    encrypted = cipher.encrypt_message(msg)
-    decrypted = cipher.decrypt_message(encrypted)
-    run_test("TC-12: Maximum key (56 bytes)", decrypted, msg)
+def tc12_max_key():
+    c = BlowfishCipher(b"K" * 56)  # 56 bytes — maximum
+    msg = "MaxKeyTest"
+    run_test("TC-12  Maximum key length (56 bytes)", c.decrypt_message(c.encrypt_message(msg)), msg)
 
-def test_cbc_mode_roundtrip():
-    """TC-13: CBC mode encrypt/decrypt roundtrip."""
-    cipher = BlowfishCipher(b"CBCModeKey77")
-    msg = "CBC mode test message"
+def tc13_cbc_roundtrip():
+    c  = BlowfishCipher(b"CBCModeKey9876")
     iv = os.urandom(8)
-    encrypted = cipher.encrypt_message_cbc(msg, iv)
-    decrypted = cipher.decrypt_message_cbc(encrypted, iv)
-    run_test("TC-13: CBC mode roundtrip", decrypted, msg)
+    msg = "CBC mode round-trip test message!"
+    run_test("TC-13  CBC mode encrypt → decrypt", c.decrypt_message_cbc(c.encrypt_message_cbc(msg, iv), iv), msg)
 
-def test_secure_packet_tamper_detected():
-    """TC-14: HMAC tampering should be detected."""
-    enc_key, mac_key = derive_keys(b"SharedSecret123")
-    cipher = BlowfishCipher(enc_key)
-    packet = build_secure_packet(cipher, mac_key, "Integrity check", 1)
-
-    tampered = dict(packet)
-    tampered["ciphertext"] = tampered["ciphertext"][:-2] + "AA"
-
+def tc14_tamper_detected():
+    enc_key, mac_key = derive_keys(b"SharedSecret999")
+    c = BlowfishCipher(enc_key)
+    pkt = build_secure_packet(c, mac_key, "Integrity check!", 1)
+    # Flip the last 2 bytes of ciphertext
+    tampered = dict(pkt)
+    import base64
+    ct = base64.b64decode(tampered["ciphertext"])
+    ct = ct[:-1] + bytes([(ct[-1] ^ 0xFF)])
+    tampered["ciphertext"] = base64.b64encode(ct).decode()
     try:
-        parse_secure_packet(cipher, mac_key, tampered, 0)
-        result = False
-    except Exception:
-        result = True
+        parse_secure_packet(c, mac_key, tampered, 0)
+        run_test("TC-14  Tampered packet rejected", False, True)
+    except ValueError:
+        run_test("TC-14  Tampered packet rejected", True, True)
 
-    run_test("TC-14: Tampered packet rejected", result, True)
+def tc15_replay_rejected():
+    enc_key, mac_key = derive_keys(b"SharedSecret999")
+    c = BlowfishCipher(enc_key)
+    pkt = build_secure_packet(c, mac_key, "Original message", 5)
+    try:
+        parse_secure_packet(c, mac_key, pkt, 5)   # last_seq == seq → replay
+        run_test("TC-15  Replay packet rejected", False, True)
+    except ValueError:
+        run_test("TC-15  Replay packet rejected", True, True)
 
+
+# ─── Main ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("=" * 55)
-    print("  Blowfish Algorithm Test Cases")
-    print("  Project: Offline Secured Chat Application")
-    print("=" * 55)
+    SEP = "─" * 60
+    print(SEP)
+    print("  Offline Secured Chat — Test Suite")
+    print("  Algorithm : Blowfish-CBC + HMAC-SHA256")
+    print("  Author    : Muhammad Shoaib Khalid")
+    print(SEP)
 
-    test_basic_encrypt_decrypt()
-    test_empty_string()
-    test_long_message()
-    test_special_characters()
-    test_different_keys_different_output()
-    test_wrong_key_cannot_decrypt_correctly()
-    test_numeric_message()
-    test_urdu_unicode()
-    test_ciphertext_is_bytes()
-    test_ciphertext_not_equal_plaintext()
-    test_minimum_key_length()
-    test_maximum_key_length()
-    test_cbc_mode_roundtrip()
-    test_secure_packet_tamper_detected()
+    tc01_basic_ecb()
+    tc02_empty_string()
+    tc03_long_message()
+    tc04_special_chars()
+    tc05_different_keys_diff_output()
+    tc06_wrong_key_cannot_decrypt()
+    tc07_numeric_message()
+    tc08_urdu_unicode()
+    tc09_ciphertext_is_bytes()
+    tc10_ciphertext_ne_plaintext()
+    tc11_min_key()
+    tc12_max_key()
+    tc13_cbc_roundtrip()
+    tc14_tamper_detected()
+    tc15_replay_rejected()
 
-    print("=" * 55)
-    print("  All test cases completed.")
-    print("=" * 55)
+    print(SEP)
+    print("  All test cases executed.")
+    print(SEP)
