@@ -1,8 +1,6 @@
 # test_cases.py
 # Test Cases for Blowfish Algorithm + Secure Protocol
 # Project : Offline Secured Chat Application
-# Name  : Jawad Khalid  |  Roll number: F25BINCE1M04090
-# Course  : CSDF-30109 Information Security
 
 import os
 from blowfish import BlowfishCipher
