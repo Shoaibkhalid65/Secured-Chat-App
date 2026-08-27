@@ -1,8 +1,6 @@
 # blowfish.py
 # Blowfish Cryptographic Algorithm — Full From-Scratch Implementation
 # Project : Offline Secured Chat Application
-# Name  : Jawad Khalid  |  Roll number: F25BINCE1M04090
-# Course  : CSDF-30109 Information Security  |  Instructor: Dr. Asjad Amin
 # University: The Islamia University of Bahawalpur
 
 from struct import pack, unpack
