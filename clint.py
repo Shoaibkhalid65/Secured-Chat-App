@@ -2,7 +2,6 @@
 # Offline Secured Chat Application — CLIENT SIDE
 # Run this on the machine that CONNECTS to the server.
 # Project : Offline Secured Chat Application
-# Author  : Jawad Khalid
 
 import os
 import socket
