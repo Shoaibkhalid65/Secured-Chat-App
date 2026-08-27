@@ -1,7 +1,6 @@
 # secure_protocol.py
 # Secure Message Protocol — Blowfish-CBC + HMAC-SHA256 + Replay Protection
 # Project : Offline Secured Chat Application
-# Author  : Jawad Khalid
 
 import base64
 import hashlib
