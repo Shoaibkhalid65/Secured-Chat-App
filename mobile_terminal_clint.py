@@ -13,7 +13,6 @@
 #    4. Chat!
 #
 #  Project : Offline Secured Chat Application
-#  Author  : Jawad Khalid
 # ============================================================
 
 import socket
