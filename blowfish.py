@@ -1,7 +1,7 @@
 # blowfish.py
 # Blowfish Cryptographic Algorithm — Full From-Scratch Implementation
 # Project : Offline Secured Chat Application
-# University: The Islamia University of Bahawalpur
+# University:  The Islamia University of Bahawalpur
 
 from struct import pack, unpack
 
